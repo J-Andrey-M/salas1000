@@ -28,7 +28,6 @@
             text-align: center;
             width: 90%;
             max-width: 600px;
-            /* Transição suave ao trocar de tela */
             animation: fadeIn 0.3s ease-in-out; 
         }
 
@@ -37,7 +36,6 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Container mais largo para o histórico */
         #pagina-historico { max-width: 800px; }
 
         h1 { color: #444; margin-bottom: 20px; font-size: 24px; }
@@ -92,12 +90,24 @@
         .cabecalho-historico { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
         .cabecalho-historico h1 { margin: 0; padding: 0; border: none; }
         
-        .historico-item { background: #f8f9fa; border-left: 5px solid #17a2b8; padding: 15px; margin-bottom: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; text-align: left;}
+        /* Modificado para suportar os botões e os detalhes expansíveis */
+        .historico-item { background: #f8f9fa; border-left: 5px solid #17a2b8; padding: 15px; margin-bottom: 15px; border-radius: 4px; display: flex; flex-direction: column; text-align: left;}
+        .historico-cabecalho-item { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .historico-dados { flex: 1; margin-right: 20px; }
         .historico-data { font-size: 14px; color: #666; margin-bottom: 5px; font-weight: bold; }
-        .historico-salas { font-size: 14px; color: #444; line-height: 1.4; }
+        .historico-salas { font-size: 16px; color: #333; }
+        
+        .botoes-acao-historico { display: flex; gap: 8px; }
+        .btn-detalhes { background-color: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .btn-detalhes:hover { background-color: #218838; }
         .btn-excluir { background-color: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
         .btn-excluir:hover { background-color: #c82333; }
+        
+        /* Área de detalhes oculta por padrão */
+        .area-detalhes { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; font-size: 14px; color: #444; }
+        .area-detalhes ul { margin: 0; padding-left: 20px; }
+        .area-detalhes li { margin-bottom: 6px; }
+
         .aviso { text-align: center; color: #666; font-style: italic; margin-top: 20px; }
     </style>
 </head>
@@ -268,10 +278,14 @@
             let html = "";
             let patrimonioAtual = numeroInicial;
             const MAX_POR_CARRINHO = 48;
-            let resumoSalasGeradas = [];
+            
+            let resumoDetalhadoSalas = [];
+            let totalTabletsNestaGeracao = 0; // Variável para somar o total
 
             listaSalas.forEach(sala => {
                 const totalSala = sala.qtd;
+                totalTabletsNestaGeracao += totalSala; // Somando ao total
+                
                 let blocosDestaSala = [];
 
                 const qtdPartes = Math.ceil(totalSala / MAX_POR_CARRINHO);
@@ -307,7 +321,8 @@
                         sequencia: listaStr
                     });
                     
-                    resumoSalasGeradas.push(`${bloco.nome} (${intervalo})`);
+                    // Salvando no formato exato que você pediu (Opção 1)
+                    resumoDetalhadoSalas.push(`${bloco.nome}: ${intervalo}`);
 
                     html += `
                         <div class="bloco-sala">
@@ -332,7 +347,8 @@
             
             const registro = {
                 dataHora: `${dataPadrao} às ${horaPadrao}`,
-                salasResumo: resumoSalasGeradas.join(', ')
+                totalTablets: totalTabletsNestaGeracao,
+                detalhesLista: resumoDetalhadoSalas // Agora salvamos um Array com a lista
             };
             
             historicoGeral.unshift(registro); 
@@ -341,14 +357,12 @@
 
         // --- NAVEGAÇÃO E LÓGICA DO HISTÓRICO ---
         function abrirPaginaHistorico() {
-            // Esconde a principal, mostra a de histórico
             document.getElementById('pagina-principal').style.display = 'none';
             document.getElementById('pagina-historico').style.display = 'block';
             renderizarHistorico();
         }
 
         function voltarParaPrincipal() {
-            // Esconde a de histórico, mostra a principal
             document.getElementById('pagina-historico').style.display = 'none';
             document.getElementById('pagina-principal').style.display = 'block';
         }
@@ -363,23 +377,53 @@
             }
 
             historicoGeral.forEach((item, index) => {
+                // Monta a lista de HTML dos detalhes (um abaixo do outro)
+                let listaHtml = "";
+                if (item.detalhesLista) {
+                    listaHtml = "<ul>" + item.detalhesLista.map(linha => `<li>${linha}</li>`).join('') + "</ul>";
+                } else if (item.salasResumo) { // Compatibilidade com dados antigos salvos antes dessa alteração
+                    listaHtml = `<p>${item.salasResumo}</p>`;
+                }
+
+                // Verifica se tem o total (para compatibilidade com dados antigos)
+                let infoTotal = item.totalTablets ? `<strong>Total Processado:</strong> ${item.totalTablets} tablets` : "Informação detalhada abaixo";
+
                 divLista.innerHTML += `
                     <div class="historico-item">
-                        <div class="historico-dados">
-                            <div class="historico-data">Gerado em: ${item.dataHora}</div>
-                            <div class="historico-salas">${item.salasResumo}</div>
+                        <div class="historico-cabecalho-item">
+                            <div class="historico-dados">
+                                <div class="historico-data">Data da Geração: ${item.dataHora}</div>
+                                <div class="historico-salas">${infoTotal}</div>
+                            </div>
+                            <div class="botoes-acao-historico">
+                                <button class="btn-detalhes" onclick="alternarDetalhes(${index})">Ver Detalhes</button>
+                                <button class="btn-excluir" onclick="excluirDoHistorico(${index})">Remover</button>
+                            </div>
                         </div>
-                        <button class="btn-excluir" onclick="excluirDoHistorico(${index})">Remover</button>
+                        
+                        <div id="detalhes-historico-${index}" class="area-detalhes">
+                            ${listaHtml}
+                        </div>
                     </div>
                 `;
             });
         }
 
+        // Função para mostrar/esconder a área de detalhes
+        function alternarDetalhes(index) {
+            const areaDetalhes = document.getElementById(`detalhes-historico-${index}`);
+            if (areaDetalhes.style.display === "block") {
+                areaDetalhes.style.display = "none";
+            } else {
+                areaDetalhes.style.display = "block";
+            }
+        }
+
         function excluirDoHistorico(index) {
             if (confirm("Deseja realmente remover este registro do histórico?")) {
-                historicoGeral.splice(index, 1); // Remove o item da memória
-                salvarDados(); // Atualiza o localStorage
-                renderizarHistorico(); // Recarrega a lista na tela
+                historicoGeral.splice(index, 1); 
+                salvarDados(); 
+                renderizarHistorico(); 
             }
         }
 
