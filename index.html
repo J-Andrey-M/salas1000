@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Sequência (Por Sala)</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        /* Estilos CSS */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px 0;
+        }
+        .container {
+            background: #fff;
+            padding: 25px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+        }
+        h1 { color: #444; margin-bottom: 20px; font-size: 24px; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="number"], input[type="text"] {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; 
+        }
+
+        /* Área de Adicionar Sala */
+        .add-sala-controles {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .add-sala-controles .campo-nome { flex: 2; text-align: left; }
+        .add-sala-controles .campo-qtd { flex: 1; text-align: left; }
+        
+        .btn-add {
+            background-color: #28a745;
+            color: white; border: none; padding: 10px; border-radius: 5px; font-size: 18px; cursor: pointer; height: 42px; width: 50px;
+        }
+        .btn-add:hover { background-color: #218838; }
+
+        /* Lista Visual de Salas (Fila) */
+        #fila-salas {
+            list-style: none; padding: 0; margin: 10px 0; text-align: left; border: 1px solid #eee; border-radius: 5px; max-height: 150px; overflow-y: auto;
+        }
+        #fila-salas li {
+            background: #f8f9fa; border-bottom: 1px solid #eee; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 14px;
+        }
+        #fila-salas li:last-child { border-bottom: none; }
+        .btn-remove {
+            background-color: #dc3545; color: white; border: none; border-radius: 3px; padding: 2px 8px; font-size: 12px; cursor: pointer;
+        }
+
+        /* Botões Gerais */
+        .btn-acao {
+            background-color: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 5px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 10px;
+        }
+        .btn-acao:hover { background-color: #0056b3; }
+        .btn-acao:disabled { background-color: #aaa; cursor: not-allowed; }
+
+        /* Resultado */
+        #resultado {
+            margin-top: 20px; text-align: left; background-color: #e9ecef; padding: 15px; border-radius: 5px; word-wrap: break-word;
+        }
+        .bloco-sala {
+            background: white; padding: 10px; margin-bottom: 10px; border-left: 5px solid #007bff; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .bloco-sala h3 { margin: 0 0 5px 0; color: #333; font-size: 16px; }
+        .bloco-sala p { margin: 3px 0; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Gerador de Sequência de Tablets</h1>
+
+        <div class="input-group">
+            <label for="numero-inicial">Número do Primeiro Tablet:</label>
+            <input type="number" id="numero-inicial" value="1">
+        </div>
+
+        <div class="input-group">
+            <label>Montar Fila de Salas:</label>
+            <div class="add-sala-controles">
+                <div class="campo-nome">
+                    <input type="text" id="nome-sala" value="Sala ">
+                </div>
+                <div class="campo-qtd">
+                    <input type="number" id="qtd-sala" placeholder="Qtd">
+                </div>
+                <button class="btn-add" onclick="adicionarSala()" title="Adicionar à fila">+</button>
+            </div>
+            
+            <ul id="fila-salas"></ul>
+            <small style="color: #666;">Adicione as salas acima. A numeração será contínua seguindo esta ordem.</small>
+        </div>
+
+        <div class="input-group">
+            <label for="numeros-excluidos">Excluir Patrimônios (Danificados/Faltantes):</label>
+            <input type="text" id="numeros-excluidos" placeholder="Ex: 15, 20-25">
+        </div>
+
+        <button class="btn-acao" onclick="gerarSequencia()">Gerar Sequências</button>
+        <button class="btn-acao" id="btn-baixar" onclick="baixarRelatorio()" disabled>Baixar TXT</button>
+        <button class="btn-acao" id="btn-baixar-pdf" onclick="baixarRelatorioPDF()" disabled>Baixar PDF</button>
+        
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        // --- Estado da Aplicação ---
+        let listaSalas = [];
+        let resultadosGerados = [];
+        let dadosConfig = {};
+
+        // --- Adicionar/Remover Salas ---
+        function adicionarSala() {
+            const nomeInput = document.getElementById('nome-sala');
+            const qtdInput = document.getElementById('qtd-sala');
+            
+            const nome = nomeInput.value.trim();
+            const qtd = parseInt(qtdInput.value);
+
+            if (!nome) { alert("O nome da sala não pode ficar vazio."); return; }
+            if (isNaN(qtd) || qtd <= 0) { alert("Digite a quantidade de tablets."); return; }
+
+            listaSalas.push({ nome, qtd });
+            
+            // AQUI: Reseta para "Sala " em vez de limpar tudo
+            nomeInput.value = "Sala ";
+            qtdInput.value = "";
+            
+            nomeInput.focus(); // Foca no nome para você já digitar o número da próxima
+            atualizarVisualizacaoFila();
+        }
+
+        function removerSala(index) {
+            listaSalas.splice(index, 1);
+            atualizarVisualizacaoFila();
+        }
+
+        function atualizarVisualizacaoFila() {
+            const ul = document.getElementById('fila-salas');
+            ul.innerHTML = "";
+            listaSalas.forEach((sala, index) => {
+                ul.innerHTML += `
+                    <li>
+                        <span><b>${index + 1}. ${sala.nome}</b> (${sala.qtd} tablets)</span>
+                        <button class="btn-remove" onclick="removerSala(${index})">X</button>
+                    </li>`;
+            });
+        }
+
+        // --- Lógica Principal (Mantida igual) ---
+        function gerarSequencia() {
+            const numeroInicial = parseInt(document.getElementById('numero-inicial').value);
+            const strExcluidos = document.getElementById('numeros-excluidos').value;
+            const divResultado = document.getElementById('resultado');
+
+            resultadosGerados = [];
+            document.getElementById('btn-baixar').disabled = true;
+            document.getElementById('btn-baixar-pdf').disabled = true;
+
+            if (isNaN(numeroInicial)) { divResultado.innerHTML = "Erro: Número inicial inválido."; return; }
+            if (listaSalas.length === 0) { divResultado.innerHTML = "Adicione pelo menos uma sala na fila."; return; }
+
+            // Processar Exclusões
+            const setExcluidos = new Set();
+            if (strExcluidos.trim()) {
+                strExcluidos.split(',').forEach(r => {
+                    r = r.trim();
+                    if (r.includes('-')) {
+                        const [ini, fim] = r.split('-').map(n => parseInt(n));
+                        if (!isNaN(ini) && !isNaN(fim)) for (let k=ini; k<=fim; k++) setExcluidos.add(k);
+                    } else {
+                        const n = parseInt(r);
+                        if (!isNaN(n)) setExcluidos.add(n);
+                    }
+                });
+            }
+
+            // GERAÇÃO
+            let html = "";
+            let patrimonioAtual = numeroInicial;
+            const MAX_POR_CARRINHO = 48;
+
+            listaSalas.forEach(sala => {
+                const totalSala = sala.qtd;
+                let blocosDestaSala = [];
+
+                const qtdPartes = Math.ceil(totalSala / MAX_POR_CARRINHO);
+                
+                if (qtdPartes <= 1) {
+                    blocosDestaSala.push({ nome: sala.nome, qtd: totalSala });
+                } else {
+                    let base = Math.floor(totalSala / qtdPartes);
+                    let resto = totalSala % qtdPartes;
+                    for (let p=1; p<=qtdPartes; p++) {
+                        let q = base + (resto > 0 ? 1 : 0);
+                        if (resto > 0) resto--;
+                        blocosDestaSala.push({ nome: `${sala.nome} (Parte ${p})`, qtd: q });
+                    }
+                }
+
+                blocosDestaSala.forEach(bloco => {
+                    let sequencia = [];
+                    while (sequencia.length < bloco.qtd) {
+                        if (!setExcluidos.has(patrimonioAtual)) {
+                            sequencia.push(patrimonioAtual);
+                        }
+                        patrimonioAtual++; 
+                    }
+
+                    const intervalo = `${sequencia[0]} até ${sequencia[sequencia.length-1]}`;
+                    const listaStr = sequencia.join(', ');
+
+                    resultadosGerados.push({
+                        titulo: bloco.nome,
+                        qtd: bloco.qtd,
+                        intervalo: intervalo,
+                        sequencia: listaStr
+                    });
+
+                    html += `
+                        <div class="bloco-sala">
+                            <h3>${bloco.nome} <span style="font-weight:normal; font-size:0.9em; color:#666;">(${bloco.qtd} tablets)</span></h3>
+                            <p><strong>Intervalo:</strong> ${intervalo}</p>
+                            <p style="color:#555; font-size:13px;">${listaStr}</p>
+                        </div>
+                    `;
+                });
+            });
+
+            dadosConfig = { numeroInicial, strExcluidos };
+            divResultado.innerHTML = `<p><strong>Resumo:</strong> Processados ${listaSalas.length} salas consecutivas.</p>` + html;
+            
+            document.getElementById('btn-baixar').disabled = false;
+            document.getElementById('btn-baixar-pdf').disabled = false;
+        }
+
+        // --- PDF e TXT ---
+        function baixarRelatorio() {
+            if (!resultadosGerados.length) return;
+            let txt = `RELATÓRIO DE SEQUÊNCIA\nPrimeiro Tablet: ${dadosConfig.numeroInicial} | Excluídos: ${dadosConfig.strExcluidos || 'Nenhum'}\n\n`;
+            resultadosGerados.forEach(r => {
+                txt += `=== ${r.titulo} (${r.qtd} un) ===\nIntervalo: ${r.intervalo}\nSequência: ${r.sequencia}\n\n`;
+            });
+            salvarArquivo(txt, 'relatorio_tablets.txt', 'text/plain');
+        }
+
+        function baixarRelatorioPDF() {
+            if (!resultadosGerados.length) return;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            let y = 20;
+            const margem = 15;
+            const larguraUtil = doc.internal.pageSize.width - (margem * 2);
+
+            doc.setFontSize(16); doc.text("Relatório de Tablets por Sala", margem, y);
+            y+=10;
+            doc.setFontSize(10); doc.text(`Número do Primeiro Tablet: ${dadosConfig.numeroInicial}`, margem, y);
+            y+=10;
+
+            resultadosGerados.forEach(r => {
+                if (y > 250) { doc.addPage(); y = 20; }
+                
+                doc.setFontSize(12); doc.setFont("helvetica", "bold");
+                doc.text(`${r.titulo}`, margem, y);
+                doc.setFont("helvetica", "normal");
+                doc.text(`(${r.qtd} un)`, margem + 120, y); 
+                y+=6;
+
+                doc.setFontSize(10);
+                doc.text(`Intervalo: ${r.intervalo}`, margem, y);
+                y+=6;
+                
+                const linhas = doc.splitTextToSize(r.sequencia, larguraUtil);
+                doc.setTextColor(80);
+                doc.text(linhas, margem, y);
+                doc.setTextColor(0);
+                y += (linhas.length * 4) + 8; 
+            });
+
+            doc.save('relatorio_tablets.pdf');
+        }
+
+        function salvarArquivo(conteudo, nome, tipo) {
+            const blob = new Blob([conteudo], { type: tipo });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = nome;
+            link.click();
+        }
+    </script>
+</body>
+</html>
