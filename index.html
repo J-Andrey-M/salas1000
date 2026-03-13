@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
-        /* Estilos CSS */
+        /* Estilos CSS (Principais) */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background-color: #f4f4f9;
@@ -75,31 +75,6 @@
         }
         .bloco-sala h3 { margin: 0 0 5px 0; color: #333; font-size: 16px; }
         .bloco-sala p { margin: 3px 0; font-size: 14px; }
-
-        /* Estilos do Modal (Histórico) */
-        .modal {
-            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
-            overflow: auto; background-color: rgba(0,0,0,0.5);
-        }
-        .modal-content {
-            background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888;
-            width: 90%; max-width: 650px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close:hover { color: #333; }
-        
-        .historico-item {
-            background: #f8f9fa; border-left: 5px solid #17a2b8; padding: 12px; margin-bottom: 15px; border-radius: 4px;
-        }
-        .historico-header {
-            display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 8px;
-        }
-        .historico-header strong { color: #333; }
-        .historico-header span { font-size: 12px; color: #666; }
-        .historico-salas { font-size: 13px; color: #555; }
-        
-        .btn-limpar { background-color: #dc3545; margin-top: 15px; }
-        .btn-limpar:hover { background-color: #c82333; }
     </style>
 </head>
 <body>
@@ -138,20 +113,10 @@
         <div class="botoes-linha">
             <button class="btn-acao" id="btn-baixar" onclick="baixarRelatorio()" disabled>Baixar TXT</button>
             <button class="btn-acao" id="btn-baixar-pdf" onclick="baixarRelatorioPDF()" disabled>Baixar PDF</button>
-            <button class="btn-acao btn-historico" onclick="abrirHistorico()">Ver Histórico</button>
+            <button class="btn-acao btn-historico" onclick="abrirHistoricoNovaGuia()">Ver Histórico</button>
         </div>
         
         <div id="resultado"></div>
-    </div>
-
-    <div id="modal-historico" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="fecharHistorico()">&times;</span>
-            <h2 style="margin-top: 0; color: #333;">Histórico de Gerações</h2>
-            <div id="lista-historico" style="max-height: 400px; overflow-y: auto; text-align: left;">
-                </div>
-            <button class="btn-acao btn-limpar" onclick="limparHistorico()">Limpar Histórico do Dia</button>
-        </div>
     </div>
 
     <script>
@@ -159,7 +124,7 @@
         let listaSalas = [];
         let resultadosGerados = [];
         let dadosConfig = {};
-        let historicoGeral = []; // Nova variável para o histórico
+        let historicoGeral = []; 
 
         // --- SISTEMA DE SALVAMENTO AUTOMÁTICO ---
         function salvarDados() {
@@ -170,19 +135,20 @@
                 salas: listaSalas,
                 inicial: numeroInicial,
                 excluidos: numerosExcluidos,
-                historico: historicoGeral // Salva o histórico junto
+                historico: historicoGeral 
             };
             
             localStorage.setItem('dadosTabletsApp', JSON.stringify(dadosParaSalvar));
         }
 
-        function carregarDados() {
+        // Deixei essa função global (window) para que a nova aba consiga avisar quando apagar um histórico
+        window.carregarDados = function() {
             const dadosSalvos = localStorage.getItem('dadosTabletsApp');
             if (dadosSalvos) {
                 const dados = JSON.parse(dadosSalvos);
                 
                 listaSalas = dados.salas || [];
-                historicoGeral = dados.historico || []; // Carrega o histórico
+                historicoGeral = dados.historico || []; 
                 
                 if (dados.inicial) document.getElementById('numero-inicial').value = dados.inicial;
                 if (dados.excluidos) document.getElementById('numeros-excluidos').value = dados.excluidos;
@@ -191,7 +157,7 @@
             }
         }
 
-        window.onload = carregarDados;
+        window.onload = window.carregarDados;
 
         // --- Adicionar/Remover Salas ---
         function adicionarSala() {
@@ -328,63 +294,116 @@
             
             // --- REGISTRO NO HISTÓRICO ---
             const agora = new Date();
+            const dataPadrao = agora.toLocaleDateString('pt-BR');
+            const horaPadrao = agora.toLocaleTimeString('pt-BR');
+            
             const registro = {
-                dataHora: agora.toLocaleDateString() + ' às ' + agora.toLocaleTimeString(),
+                dataHora: `${dataPadrao} às ${horaPadrao}`,
                 salasResumo: resumoSalasGeradas.join(', ')
             };
             
-            historicoGeral.unshift(registro); // Coloca o mais recente no topo
-            
+            historicoGeral.unshift(registro); 
             salvarDados();
         }
 
-        // --- FUNÇÕES DO HISTÓRICO (MODAL) ---
-        function abrirHistorico() {
-            const modal = document.getElementById('modal-historico');
-            const lista = document.getElementById('lista-historico');
+        // --- HISTÓRICO EM NOVA GUIA ---
+        function abrirHistoricoNovaGuia() {
+            // Abre uma nova aba em branco
+            const novaGuia = window.open('', '_blank');
             
-            lista.innerHTML = "";
+            if (!novaGuia) {
+                alert("O navegador bloqueou a abertura da aba. Por favor, permita os pop-ups para usar o histórico.");
+                return;
+            }
+
+            // Cria a estrutura HTML da nova página de Histórico
+            const conteudoHTML = `
+                <!DOCTYPE html>
+                <html lang="pt-br">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Histórico de Tablets</title>
+                    <style>
+                        body { font-family: -apple-system, sans-serif; background-color: #f4f4f9; color: #333; padding: 30px; }
+                        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+                        h1 { color: #444; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+                        .historico-item { background: #f8f9fa; border-left: 5px solid #17a2b8; padding: 15px; margin-bottom: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+                        .historico-dados { flex: 1; margin-right: 20px; }
+                        .historico-data { font-size: 14px; color: #666; margin-bottom: 5px; font-weight: bold; }
+                        .historico-salas { font-size: 14px; color: #444; line-height: 1.4; }
+                        .btn-excluir { background-color: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+                        .btn-excluir:hover { background-color: #c82333; }
+                        .aviso { text-align: center; color: #666; font-style: italic; margin-top: 20px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>Histórico Completo de Gerações</h1>
+                        <div id="lista-historico"></div>
+                    </div>
+
+                    <script>
+                        function carregarHistorico() {
+                            const dadosStorage = localStorage.getItem('dadosTabletsApp');
+                            const divLista = document.getElementById('lista-historico');
+                            divLista.innerHTML = '';
+
+                            if (!dadosStorage) {
+                                divLista.innerHTML = '<p class="aviso">Nenhum histórico encontrado.</p>';
+                                return;
+                            }
+
+                            const dados = JSON.parse(dadosStorage);
+                            const historico = dados.historico || [];
+
+                            if (historico.length === 0) {
+                                divLista.innerHTML = '<p class="aviso">O histórico está vazio.</p>';
+                                return;
+                            }
+
+                            historico.forEach((item, index) => {
+                                divLista.innerHTML += \`
+                                    <div class="historico-item">
+                                        <div class="historico-dados">
+                                            <div class="historico-data">Gerado em: \${item.dataHora}</div>
+                                            <div class="historico-salas">\${item.salasResumo}</div>
+                                        </div>
+                                        <button class="btn-excluir" onclick="excluirRegistro(\${index})">Remover</button>
+                                    </div>
+                                \`;
+                            });
+                        }
+
+                        function excluirRegistro(index) {
+                            if (confirm("Deseja realmente remover este registro do histórico?")) {
+                                const dadosStorage = localStorage.getItem('dadosTabletsApp');
+                                if (dadosStorage) {
+                                    const dados = JSON.parse(dadosStorage);
+                                    if (dados.historico) {
+                                        dados.historico.splice(index, 1); // Remove o item
+                                        localStorage.setItem('dadosTabletsApp', JSON.stringify(dados)); // Salva novamente
+                                        carregarHistorico(); // Recarrega a tela
+                                        
+                                        // Avisa a guia principal (Gerador) para atualizar a memória dela também!
+                                        if (window.opener && !window.opener.closed && window.opener.carregarDados) {
+                                            window.opener.carregarDados();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Carrega ao abrir a guia
+                        window.onload = carregarHistorico;
+                    </script>
+                </body>
+                </html>
+            `;
             
-            if (historicoGeral.length === 0) {
-                lista.innerHTML = "<p style='text-align:center; color:#666;'>Nenhum histórico registrado ainda.</p>";
-            } else {
-                historicoGeral.forEach((item, index) => {
-                    lista.innerHTML += `
-                        <div class="historico-item">
-                            <div class="historico-header">
-                                <strong>Geração #${historicoGeral.length - index}</strong>
-                                <span>${item.dataHora}</span>
-                            </div>
-                            <div class="historico-salas">
-                                <strong>Salas e Intervalos:</strong> ${item.salasResumo}
-                            </div>
-                        </div>
-                    `;
-                });
-            }
-            
-            modal.style.display = "block";
-        }
-
-        function fecharHistorico() {
-            document.getElementById('modal-historico').style.display = "none";
-        }
-
-        function limparHistorico() {
-            if (confirm("Tem certeza que deseja apagar todo o histórico de hoje?")) {
-                historicoGeral = [];
-                salvarDados();
-                fecharHistorico();
-                alert("Histórico limpo!");
-            }
-        }
-
-        // Fechar modal clicando fora dele
-        window.onclick = function(event) {
-            const modal = document.getElementById('modal-historico');
-            if (event.target == modal) {
-                modal.style.display = "none";
-            }
+            // Escreve o HTML na nova guia
+            novaGuia.document.open();
+            novaGuia.document.write(conteudoHTML);
+            novaGuia.document.close();
         }
 
         // --- PDF e TXT ---
