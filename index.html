@@ -102,9 +102,8 @@
         .btn-excluir { background-color: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
         .btn-excluir:hover { background-color: #c82333; }
         
-        .area-detalhes { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; font-size: 14px; color: #444; }
-        .area-detalhes ul { margin: 0; padding-left: 20px; }
-        .area-detalhes li { margin-bottom: 6px; }
+        .area-detalhes { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; font-size: 15px; color: #444; }
+        .linha-detalhe { margin-bottom: 15px; } /* A classe que dá o espaçamento limpo */
 
         .aviso { text-align: center; color: #666; font-style: italic; margin-top: 20px; }
     </style>
@@ -315,7 +314,7 @@
                         sequencia: listaStr
                     });
                     
-                    resumoDetalhadoSalas.push(`<strong>${bloco.nome}:</strong> ${intervalo}`);
+                    resumoDetalhadoSalas.push(`<strong>${bloco.nome}:</strong> &nbsp;&nbsp;${intervalo}`);
 
                     html += `
                         <div class="bloco-sala">
@@ -370,12 +369,12 @@
             historicoGeral.forEach((item, index) => {
                 let listaHtml = "";
                 if (item.detalhesLista) {
-                    listaHtml = "<ul>" + item.detalhesLista.map(linha => `<li>${linha}</li>`).join('') + "</ul>";
+                    // AQUI ESTÁ A MUDANÇA: Tiramos o "ul/li" e colocamos a div com a classe que dá o espaçamento
+                    listaHtml = item.detalhesLista.map(linha => `<div class="linha-detalhe">${linha}</div>`).join('');
                 } else if (item.salasResumo) { 
                     listaHtml = `<p>${item.salasResumo}</p>`;
                 }
 
-                // AQUI FOI ALTERADO CONFORME SEU PEDIDO!
                 let quantidade = item.totalTablets || 0;
                 let infoTotal = `<strong>Total de tablets processados:</strong> ${quantidade}`;
 
