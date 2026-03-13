@@ -90,7 +90,6 @@
         .cabecalho-historico { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
         .cabecalho-historico h1 { margin: 0; padding: 0; border: none; }
         
-        /* Modificado para suportar os botões e os detalhes expansíveis */
         .historico-item { background: #f8f9fa; border-left: 5px solid #17a2b8; padding: 15px; margin-bottom: 15px; border-radius: 4px; display: flex; flex-direction: column; text-align: left;}
         .historico-cabecalho-item { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .historico-dados { flex: 1; margin-right: 20px; }
@@ -103,7 +102,6 @@
         .btn-excluir { background-color: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
         .btn-excluir:hover { background-color: #c82333; }
         
-        /* Área de detalhes oculta por padrão */
         .area-detalhes { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; font-size: 14px; color: #444; }
         .area-detalhes ul { margin: 0; padding-left: 20px; }
         .area-detalhes li { margin-bottom: 6px; }
@@ -159,8 +157,7 @@
             <button class="btn-acao btn-voltar" onclick="voltarParaPrincipal()">Voltar para o Gerador</button>
         </div>
         
-        <div id="lista-historico-pagina">
-            </div>
+        <div id="lista-historico-pagina"></div>
     </div>
 
     <script>
@@ -170,7 +167,6 @@
         let dadosConfig = {};
         let historicoGeral = []; 
 
-        // --- SISTEMA DE SALVAMENTO AUTOMÁTICO ---
         function salvarDados() {
             const numeroInicial = document.getElementById('numero-inicial').value;
             const numerosExcluidos = document.getElementById('numeros-excluidos').value;
@@ -202,7 +198,6 @@
 
         window.onload = carregarDados;
 
-        // --- Adicionar/Remover Salas ---
         function adicionarSala() {
             const nomeInput = document.getElementById('nome-sala');
             const qtdInput = document.getElementById('qtd-sala');
@@ -248,7 +243,6 @@
             });
         }
 
-        // --- Lógica Principal ---
         function gerarSequencia() {
             const numeroInicial = parseInt(document.getElementById('numero-inicial').value);
             const strExcluidos = document.getElementById('numeros-excluidos').value;
@@ -280,11 +274,11 @@
             const MAX_POR_CARRINHO = 48;
             
             let resumoDetalhadoSalas = [];
-            let totalTabletsNestaGeracao = 0; // Variável para somar o total
+            let totalTabletsNestaGeracao = 0; 
 
             listaSalas.forEach(sala => {
                 const totalSala = sala.qtd;
-                totalTabletsNestaGeracao += totalSala; // Somando ao total
+                totalTabletsNestaGeracao += totalSala; 
                 
                 let blocosDestaSala = [];
 
@@ -321,8 +315,7 @@
                         sequencia: listaStr
                     });
                     
-                    // Salvando no formato exato que você pediu (Opção 1)
-                    resumoDetalhadoSalas.push(`${bloco.nome}: ${intervalo}`);
+                    resumoDetalhadoSalas.push(`<strong>${bloco.nome}:</strong> ${intervalo}`);
 
                     html += `
                         <div class="bloco-sala">
@@ -340,7 +333,6 @@
             document.getElementById('btn-baixar').disabled = false;
             document.getElementById('btn-baixar-pdf').disabled = false;
             
-            // --- REGISTRO NO HISTÓRICO ---
             const agora = new Date();
             const dataPadrao = agora.toLocaleDateString('pt-BR');
             const horaPadrao = agora.toLocaleTimeString('pt-BR');
@@ -348,14 +340,13 @@
             const registro = {
                 dataHora: `${dataPadrao} às ${horaPadrao}`,
                 totalTablets: totalTabletsNestaGeracao,
-                detalhesLista: resumoDetalhadoSalas // Agora salvamos um Array com a lista
+                detalhesLista: resumoDetalhadoSalas 
             };
             
             historicoGeral.unshift(registro); 
             salvarDados();
         }
 
-        // --- NAVEGAÇÃO E LÓGICA DO HISTÓRICO ---
         function abrirPaginaHistorico() {
             document.getElementById('pagina-principal').style.display = 'none';
             document.getElementById('pagina-historico').style.display = 'block';
@@ -377,16 +368,16 @@
             }
 
             historicoGeral.forEach((item, index) => {
-                // Monta a lista de HTML dos detalhes (um abaixo do outro)
                 let listaHtml = "";
                 if (item.detalhesLista) {
                     listaHtml = "<ul>" + item.detalhesLista.map(linha => `<li>${linha}</li>`).join('') + "</ul>";
-                } else if (item.salasResumo) { // Compatibilidade com dados antigos salvos antes dessa alteração
+                } else if (item.salasResumo) { 
                     listaHtml = `<p>${item.salasResumo}</p>`;
                 }
 
-                // Verifica se tem o total (para compatibilidade com dados antigos)
-                let infoTotal = item.totalTablets ? `<strong>Total Processado:</strong> ${item.totalTablets} tablets` : "Informação detalhada abaixo";
+                // AQUI FOI ALTERADO CONFORME SEU PEDIDO!
+                let quantidade = item.totalTablets || 0;
+                let infoTotal = `<strong>Total de tablets processados:</strong> ${quantidade}`;
 
                 divLista.innerHTML += `
                     <div class="historico-item">
@@ -409,7 +400,6 @@
             });
         }
 
-        // Função para mostrar/esconder a área de detalhes
         function alternarDetalhes(index) {
             const areaDetalhes = document.getElementById(`detalhes-historico-${index}`);
             if (areaDetalhes.style.display === "block") {
@@ -427,7 +417,6 @@
             }
         }
 
-        // --- PDF e TXT ---
         function baixarRelatorio() {
             if (!resultadosGerados.length) return;
             let txt = `RELATÓRIO DE SEQUÊNCIA\nPrimeiro Tablet: ${dadosConfig.numeroInicial} | Excluídos: ${dadosConfig.strExcluidos || 'Nenhum'}\n\n`;
